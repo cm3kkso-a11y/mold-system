@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>模具管理系统</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{font-family:'PingFang SC','Microsoft YaHei',sans-serif;background:#f0f2f5;overflow-x:hidden}
+  .top-bar{position:sticky;top:0;z-index:50;background:white;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:12px 16px}
+  .bottom-bar{position:fixed;bottom:0;left:0;right:0;z:50;background:white;border-top:1px solid #e8e8e8;display:flex;padding:6px 0;padding-bottom:max(6px,env(safe-area-inset-bottom));box-shadow:0 -2px 8px rgba(0,0,0,.06)}
+  .bottom-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;cursor:pointer;border:none;background:none;color:#999;font-size:10px;transition:color .2s}
+  .bottom-tab.active{color:#1a73e8}
+  .bottom-tab .icon{font-size:22px;line-height:1}
+  .bottom-tab .label{font-size:10px;font-weight:500}
+  .content{padding:16px;padding-bottom:80px;max-width:600px;margin:0 auto}
+  .status-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600}
+  .mold-card{background:white;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.06);cursor:pointer;transition:transform .15s,box-shadow .15s;touch-action:manipulation}
+  .mold-card:active{transform:scale(.98);box-shadow:0 1px 4px rgba(0,0,0,.04)}
+  .card-hover:active{transform:scale(.97)}
+  .chart-bar{height:100px;display:flex;align-items:flex-end;gap:4px;padding:8px 0}
+  .bar-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+  .bar-fill{width:100%;border-radius:3px 3px 0 0;min-height:3px;transition:height .4s ease}
+  .bar-label{font-size:9px;color:#888;text-align:center}
+  .bar-value{font-size:10px;font-weight:700;color:#333}
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:flex;align-items:flex-end;justify-content:center}
+  .modal{background:white;border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto}
+  .modal-handle{width:36px;height:4px;background:#ddd;border-radius:2px;margin:0 auto 16px}
+  input,select,textarea{width:100%;padding:14px 16px;border:1.5px solid #e8e8e8;border-radius:12px;font-size:16px;outline:none;transition:border-color .2s;box-sizing:border-box;font-family:inherit;background:white}
+  input:focus,select:focus,textarea:focus{border-color:#1a73e8}
+  textarea{resize:vertical;min-height:90px}
+  .btn-primary{background:#1a73e8;color:white;padding:16px;border-radius:14px;border:none;cursor:pointer;font-size:16px;font-weight:600;width:100%;transition:background .2s;touch-action:manipulation}
+  .btn-primary:hover{background:#1557b0}.btn-primary:disabled{background:#ccc}
+  .btn-secondary{background:#f5f5f5;color:#333;padding:14px;border-radius:14px;border:none;cursor:pointer;font-size:15px;width:100%}
+  .btn-green{background:#34a853;color:white;padding:16px;border-radius:14px;border:none;cursor:pointer;font-size:16px;font-weight:600;width:100%}
+  .tab-scroll{display:flex;gap:8px;overflow-x:auto;padding:8px 0;-webkit-overflow-scrolling:touch}
+  .tab-chip{padding:8px 16px;border-radius:20px;font-size:13px;white-space:nowrap;cursor:pointer;border:1.5px solid #e8e8e8;background:white;color:#666;transition:all .2s}
+  .tab-chip.active{background:#1a73e8;color:white;border-color:#1a73e8}
+  .stat-card{background:white;border-radius:16px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.06);text-align:center}
+  .stat-big{font-size:36px;font-weight:700;color:#1a73e8}
+  .stat-label{font-size:13px;color:#888;margin-top:4px}
+  .loading{display:flex;align-items:center;justify-content:center;padding:80px;color:#999;gap:12px}
+  .loading-spinner{width:36px;height:36px;border:3px solid #e8e8e8;border-top-color:#1a73e8;border-radius:50%;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  .fade-in{animation:fadeIn .25s ease}
+  .scan-overlay{position:fixed;inset:0;background:#000;z-index:200;display:flex;flex-direction:column}
+  .scan-header{background:rgba(0,0,0,.7);padding:16px;padding-top:max(16px,env(safe-area-inset-top));display:flex;align-items:center;justify-content:space-between;color:white}
+  .scan-view{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+  .scan-frame{width:240px;height:240px;border:3px solid rgba(255,255,255, .6);border-radius:20px;position:relative;overflow:hidden}
+  .scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#1a73e8,transparent);animation:scanMove 2s linear infinite}
+  @keyframes scanMove{0%{top:10%}100%{top:90%}}
+  .scan-tip{color:rgba(255,255,255,.7);font-size:14px;text-align:center;margin-top:20px}
+  .scan-keyboard{background:#111;padding:16px;padding-bottom:max(16px,env(safe-area-inset-bottom));flex-direction:column;display:flex;gap:12px}
+  .scan-keyboard input{background:#222;border-color:#333;color:white;border-radius:12px;font-size:18px;text-align:center;padding:16px}
+  .scan-keyboard .row{display:flex;gap:12px}
+  .scan-keyboard button{flex:1;padding:16px;border-radius:12px;border:none;font-size:16px;cursor:pointer;font-weight:600;touch-action:manipulation}
+  .scan-keyboard .btn-cancel{background:#333;color:white}
+  .scan-keyboard .btn-confirm{background:#1a73e8;color:white}
+  .toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#333;color:white;padding:14px 24px;border-radius:10px;z-index:9999;font-size:14px;white-space:nowrap}
+  .toast.success{background:#34a853}.toast.error{background:#e33}
+  .empty-state{text-align:center;padding:60px 20px;color:#bbb}
+  .empty-state .icon{font-size:56px;margin-bottom:12px}
+  .empty-state div{font-size:14px}
+  .quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+  .quick-btn{display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px;background:white;border-radius:16px;box-shadow:0 2px 8px rgba(0,0,0,.06);cursor:pointer;border:none;touch-action:manipulation}
+  .quick-btn:active{transform:scale(.97)}
+  .quick-btn .icon{font-size:28px}
+  .quick-btn .label{font-size:13px;color:#333;font-weight:500}
+  .timeline{border-left:2px solid #e8e8e8;margin-left:8px;padding-left:20px}
+  .timeline-item{position:relative;padding-bottom:20px}
+  .timeline-item::before{content:'';position:absolute;left:-25px;top:4px;width:10px;height:10px;border-radius:50%;background:#1a73e8;border:2px solid white}
+  .rule-card{background:white;border-radius:16px;padding:16px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+  .rule-from{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+  .rule-arrow{font-size:12px;color:#999;margin:0 4px}
+  @media (min-width:768px){
+    .content{max-width:640px}
+    .mold-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.1)}
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback}=React;
+//const API='http://localhost:18792'; // 本地开发用
+const API='https://mold-management-api.vercel.app/api'; // 线上API
+
+const STATUS_CONFIG={
+  '新模入库':{color:'#4caf50',bg:'#e8f5e9'},
+  '在库':{color:'#2196f3',bg:'#e3f2fd'},
+  '已借出':{color:'#ff9800',bg:'#fff3e0'},
+  '生产中':{color:'#9c27b0',bg:'#f3e5f5'},
+  '模具下线':{color:'#f44336',bg:'#ffebee'},
+  '维修中':{color:'#ff5722',bg:'#fbe9e7'},
+  '试模中':{color:'#00bcd4',bg:'#e0f7fa'},
+  '验证中':{color:'#3f51b5',bg:'#e8eaf6'},
+  '待入库':{color:'#009688',bg:'#e0f2f1'},
+  '已报废':{color:'#607d8b',bg:'#eceff1'},
+};
+const FLOW_RULES={
+  '新模入库':['在库','试模中'],
+  '在库':['生产中','试模中','已借出'],
+  '已借出':['在库'],
+  '生产中':['在库','模具下线'],
+  '模具下线':['维修中','已报废'],
+  '维修中':['在库','试模中'],
+  '试模中':['在库','模具下线','已报废'],
+  '验证中':['在库','模具下线'],
+  '待入库':['在库'],
+  '已报废':[],
+};
+const LOCS=['A区-01','A区-02','A区-03','B区-01','B区-02','B区-03','C区-01','C区-02','C区-03'];
+const PAGE_NAMES={dashboard:'Dashboard',inventory:'库存',trial:'试模',repair:'维修',outsource:'外协',records:'记录',rules:'规则'};
+
+function fmtDate(d){if(!d)return'';const t=new Date(d);if(isNaN(t))return'';return`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;}
+
+function Toast({msg,type,onClose}){
+  useEffect(()=>{const t=setTimeout(onClose,2500);return()=>clearTimeout(t);},[]);
+  return<div className={`toast ${type}`}>{msg}</div>;
+}
+
+// ========== 底部导航 ==========
+function BottomBar({active,setActive,loading}){
+  const tabs=[
+    {k:'dashboard',l:'Dashboard',i:'📊'},
+    {k:'inventory',l:'库存',i:'📦'},
+    {k:'trial',l:'试模',i:'🔧'},
+    {k:'repair',l:'维修',i:'🔩'},
+    {k:'records',l:'记录',i:'📋'},
+  ];
+  return(
+    <div className="bottom-bar">
+      {tabs.map(t=>(
+        <button key={t.k} className={`bottom-tab ${active===t.k?'active':''}`} onClick={()=>setActive(t.k)}>
+          <span className="icon">{t.i}</span>
+          <span className="label">{t.k==='dashboard'?'':loading?'...':''}{t.l}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ========== 顶部栏 ==========
+function TopBar({title,actions}){
+  return(
+    <div className="top-bar">
+      <div className="flex items-center justify-between">
+        <div className="text-lg font-bold text-gray-800">{title}</div>
+        {actions}
+      </div>
+    </div>
+  );
+}
+
+// ========== Dashboard ==========
+function Dashboard({molds,setActive}){
+  const byS={};Object.keys(STATUS_CONFIG).forEach(s=>{byS[s]=0;});
+  molds.forEach(m=>{const s=m.fields.status||'在库';if(byS[s]!==undefined)byS[s]++;});
+  const max=Math.max(...Object.values(byS),1);
+  return(
+    <div className="fade-in">
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="stat-card" onClick={()=>setActive('inventory')}><div className="stat-big">{molds.length}</div><div className="stat-label">模具总数</div></div>
+        <div className="stat-card" onClick={()=>setActive('inventory')}><div className="stat-big" style={{color:'#34a853'}}>{byS['在库']+byS['待入库']}</div><div className="stat-label">库存可用</div></div>
+        <div className="stat-card" onClick={()=>setActive('inventory')}><div className="stat-big" style={{color:'#9c27b0'}}>{byS['生产中']}</div><div className="stat-label">生产中</div></div>
+        <div className="stat-card" onClick={()=>setActive('repair')}><div className="stat-big" style={{color:'#ff9800'}}>{byS['维修中']+byS['模具下线']}</div><div className="stat-label">维修/下线</div></div>
+      </div>
+      <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
+        <div className="text-sm font-semibold text-gray-700 mb-3">状态分布</div>
+        <div className="chart-bar">
+          {Object.entries(STATUS_CONFIG).map(([label,info])=>(
+            <div className="bar-item" key={label}>
+              <div className="bar-value">{byS[label]}</div>
+              <div className="bar-fill" style={{height:Math.max((byS[label]/max)*80,3)+'px',background:info.color}}></div>
+              <div className="bar-label">{label.slice(0,2)}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="quick-actions">
+        <button className="quick-btn" onClick={()=>setActive('inventory')}><span className="icon">📦</span><span className="label">新模入库</span></button>
+        <button className="quick-btn" onClick={()=>setActive('inventory')}><span className="icon">🔄</span><span className="label">状态流转</span></button>
+        <button className="quick-btn" onClick={()=>setActive('repair')}><span className="icon">🔩</span><span className="label">维修登记</span></button>
+        <button className="quick-btn" onClick={()=>setActive('trial')}><span className="icon">🔧</span><span className="label">试模记录</span></button>
+      </div>
+    </div>
+  );
+}
+
+// ========== 模具卡片 ==========
+function MoldCard({mold,onClick}){
+  const f=mold.fields;
+  const si=STATUS_CONFIG[f.status]||{color:'#999',bg:'#f5f5f5'};
+  return(
+    <div className="mold-card" onClick={()=>onClick(mold)}>
+      <div className="flex items-start justify-between mb-3">
+        <div>
+          <div className="font-bold text-base text-gray-800">{f.id}</div>
+          {f.subId&&<div className="text-sm text-gray-400">{f.subId}</div>}
+          {f.sapId&&<div className="text-xs text-gray-400 mt-1">SAP: {f.sapId}</div>}
+        </div>
+        <span className="status-badge" style={{background:si.bg,color:si.color,fontSize:'12px'}}>{f.status}</span>
+      </div>
+      <div className="grid grid-cols-3 gap-2 text-sm text-gray-500">
+        <div>📍 {f.location||'—'}</div>
+        <div>🔧 {f.repairCount}次</div>
+        <div>📅 {f.lastRepair!=='—'?f.lastRepair.slice(5):'—'}</div>
+      </div>
+    </div>
+  );
+}
+
+// ========== 模具列表 ==========
+function MoldList({molds,onSelect,onNew}){
+  const [filter,setFilter]=useState('全部');
+  const [search,setSearch]=useState('');
+  const statuses=['全部',...Object.keys(STATUS_CONFIG)];
+  const filtered=molds.filter(m=>{
+    const matchS=filter==='全部'||m.fields.status===filter;
+    const matchK=!search||m.fields.id.includes(search)||(m.fields.remark||'').includes(search);
+    return matchS&&matchK;
+  });
+  return(
+    <div className="fade-in">
+      <div className="bg-white rounded-2xl p-3 mb-3 shadow-sm">
+        <input type="text" placeholder="🔍 搜索模具编号..." value={search} onChange={e=>setSearch(e.target.value)} className="mb-3"/>
+        <div className="tab-scroll">
+          {statuses.map(s=>(
+            <div key={s} className={`tab-chip ${filter===s?'active':''}`} onClick={()=>setFilter(s)}>
+              {s==='全部'?`全部(${molds.length})`:`${s}(${molds.filter(m=>m.fields.status===s).length})`}
+            </div>
+          ))}
+        </div>
+      </div>
+      {filtered.map(m=><MoldCard key={m.record_id} mold={m} onClick={onSelect}/>)}
+      {filtered.length===0&&<div className="empty-state"><div className="icon">🔍</div><div>没有找到匹配的模具</div></div>}
+    </div>
+  );
+}
+
+// ========== 流转弹窗 ==========
+function FlowModal({mold,onConfirm,onClose}){
+  const [targetStatus,setTargetStatus]=useState('');
+  const [remark,setRemark]=useState('');
+  const f=mold.fields;
+  const current=f.status;
+  const allowed=FLOW_RULES[current]||[];
+  const si=STATUS_CONFIG[current]||{color:'#999',bg:'#f5f5f5'};
+  return(
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <div className="modal-handle"/>
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-bold">🔄 状态流转</h3>
+          <button onClick={onClose} className="text-gray-400 text-2xl w-10 h-10 flex items-center justify-center rounded-full bg-gray-100">×</button>
+        </div>
+        <div className="bg-green-50 rounded-2xl p-4 mb-5">
+          <div className="font-bold text-green-700 text-base mb-1">{f.id}{f.subId&&<span className="font-normal text-green-600"> {f.subId}</span>}</div>
+          <div className="text-sm text-green-600">{f.location||'—'} · {f.sapId||'无SAP编号'}</div>
+        </div>
+        <div className="mb-4">
+          <div className="text-sm text-gray-500 mb-2">当前状态</div>
+          <div className="p-3 bg-gray-50 rounded-xl"><span className="status-badge" style={{background:si.bg,color:si.color}}>{current}</span></div>
+        </div>
+        <div className="mb-4">
+          <div className="text-sm text-gray-500 mb-2">目标状态 *</div>
+          {allowed.length===0?
+            <div className="p-4 bg-red-50 rounded-xl text-red-500 text-center">当前状态不允许任何流转</div>
+            :<div className="flex flex-wrap gap-2">
+              {allowed.map(s=><div key={s} className={`tab-chip ${targetStatus===s?'active':''}`} onClick={()=>setTargetStatus(s)}>{s}</div>)}
+            </div>
+          }
+        </div>
+        {targetStatus&&<div className="mb-4 text-sm text-blue-600">✓ 流转后：<span className="status-badge" style={{background:STATUS_CONFIG[targetStatus]?.bg,color:STATUS_CONFIG[targetStatus]?.color}}>{targetStatus}</span></div>}
+        <div className="mb-5">
+          <div className="text-sm text-gray-500 mb-2">备注（可选）</div>
+          <textarea placeholder="输入操作说明..." value={remark} onChange={e=>setRemark(e.target.value)}/>
+        </div>
+        <button disabled={!targetStatus} onClick={()=>onConfirm(mold,targetStatus,remark)} className="btn-primary mb-3">确认流转</button>
+        <button onClick={onClose} className="btn-secondary">取消</button>
+      </div>
+    </div>
+  );
+}
+
+// ========== 新模入库 ==========
+function NewMoldModal({onConfirm,onClose}){
+  const [form,setForm]=useState({id:'',subId:'',sapId:'',location:'',remark:''});
+  const h=field=>e=>setForm({...form,[field]:e.target.value});
+  return(
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <div className="modal-handle"/>
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-bold">📦 新模入库</h3>
+          <button onClick={onClose} className="text-gray-400 text-2xl w-10 h-10 flex items-center justify-center rounded-full bg-gray-100">×</button>
+        </div>
+        <div className="space-y-4">
+          <div><label className="text-sm text-gray-500 mb-1 block">模具编号 *</label><input placeholder="如 UXEA" value={form.id} onChange={h('id')}/></div>
+          <div><label className="text-sm text-gray-500 mb-1 block">子模具号</label><input placeholder="如 #1-1" value={form.subId} onChange={h('subId')}/></div>
+          <div><label className="text-sm text-gray-500 mb-1 block">SAP设备号</label><input placeholder="如 EQ-2026-001" value={form.sapId} onChange={h('sapId')}/></div>
+          <div><label className="text-sm text-gray-500 mb-1 block">存放位置</label>
+            <select value={form.location} onChange={h('location')}>
+              <option value="">-- 选择位置 --</option>
+              {LOCS.map(l=><option key={l}>{l}</option>)}
+            </select>
+          </div>
+          <div><label className="text-sm text-gray-500 mb-1 block">备注</label><textarea placeholder="可选" value={form.remark} onChange={h('remark')}/></div>
+        </div>
+        <div className="mt-5">
+          <button onClick={()=>{if(!form.id.trim())return alert('请输入模具编号');onConfirm(form);}} className="btn-green">确认入库</button>
+          <button onClick={onClose} className="btn-secondary mt-3">取消</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ========== 扫码 ==========
+function QRScan({onResult,onClose}){
+  const videoRef=useRef(null);
+  const [manual,setManual]=useState('');
+  const [camError,setCamError]=useState('');
+  useEffect(()=>{
+    let stream;
+    navigator.mediaDevices?.getUserMedia({video:{facingMode:'environment'}}).then(s=>{stream=s;if(videoRef.current)videoRef.current.srcObject=s;}).catch(e=>{setCamError('无法访问相机，请检查权限设置');});
+    return()=>{stream?.getTracks().forEach(t=>t.stop());};
+  },[]);
+  const handle=()=>{if(manual.trim())onResult(manual.trim());};
+  return(
+    <div className="scan-overlay">
+      <div className="scan-header">
+        <button onClick={onClose} className="text-white text-lg px-2 py-1">← 返回</button>
+        <span className="text-white font-semibold">📷 扫码识别</span>
+        <div className="w-12"/>
+      </div>
+      <div className="scan-view">
+        {camError?
+          <div className="text-center p-8"><div className="text-5xl mb-4">📷</div><div className="text-white text-base mb-4">{camError}</div><div className="text-gray-400 text-sm">请在浏览器设置中允许相机权限</div></div>
+          :<><div className="scan-frame"><video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted></video><div className="scan-line"/></div><div className="scan-tip">将模具编号放入框内扫描</div></>
+        }
+      </div>
+      <div className="scan-keyboard">
+        <input placeholder="手动输入模具编号" value={manual} onChange={e=>setManual(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handle()}/>
+        <div className="row">
+          <button onClick={()=>{manual&&onResult(manual);}} className="btn-confirm flex-1">确认</button>
+          <button onClick={onClose} className="btn-cancel flex-1">取消</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ========== 试模/维修列表 ==========
+function TrialRepairPage({molds,onSelect,type}){
+  const title=type==='trial'?'🔧 试模与验证':'🔩 异常与维修';
+  const statuses=type==='trial'?['全部','试模中','验证中']:['全部','模具下线','维修中'];
+  const [filter,setFilter]=useState('全部');
+  const filtered=molds.filter(m=>{
+    const s=m.fields.status||'在库';
+    return filter==='全部'||statuses.slice(1).includes(s);
+  });
+  return(
+    <div className="fade-in">
+      <div className="bg-white rounded-2xl p-3 mb-3 shadow-sm">
+        <div className="tab-scroll">{statuses.map(s=><div key={s} className={`tab-chip ${filter===s?'active':''}`} onClick={()=>setFilter(s)}>{s}</div>)}</div>
+      </div>
+      {filtered.map(m=><MoldCard key={m.record_id} mold={m} onClick={onSelect}/>)}
+      {filtered.length===0&&<div className="empty-state"><div className="icon">📭</div><div>暂无{title}数据</div></div>}
+    </div>
+  );
+}
+
+// ========== 流转记录 ==========
+function RecordsPage({logs}){
+  return(
+    <div className="fade-in">
+      {logs.length===0?<div className="empty-state"><div className="icon">📋</div><div>暂无流转记录</div></div>:(
+        <div>
+          {logs.slice().reverse().map((log,i)=>{
+            const from=log.fields?.原值||'—';
+            const to=log.fields?.新值||'—';
+            const tsi=STATUS_CONFIG[to]||{color:'#999',bg:'#f5f5f5'};
+            const fsi=from!=='—'?STATUS_CONFIG[from]:null;
+            return(
+              <div key={log.record_id||i} className="rule-card">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="font-semibold text-base">{log.fields?.模具编号||''}</div>
+                  <div className="text-xs text-gray-400">{fmtDate(log.fields?.变动时间)}</div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {fsi&&<><span className="status-badge" style={{background:fsi.bg,color:fsi.color}}>{from}</span><span className="text-gray-400">→</span></>}
+                  <span className="status-badge" style={{background:tsi.bg,color:tsi.color}}>{to}</span>
+                  {log.fields?.备注&&<span className="text-xs text-gray-400 ml-1">({log.fields.备注})</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ========== 主应用 ==========
+function App(){
+  const [page,setPage]=useState('dashboard');
+  const [molds,setMolds]=useState([]);
+  const [logs,setLogs]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [toast,setToast]=useState(null);
+  const [selectedMold,setSelectedMold]=useState(null);
+  const [showNewMold,setShowNewMold]=useState(false);
+  const [showScan,setShowScan]=useState(false);
+
+  const show=(msg,type='success')=>setToast({msg,type});
+  const loadData=useCallback(async()=>{
+    setLoading(true);
+    try{
+      const [mr,lr]=await Promise.all([
+        fetch(API+'/molds').then(r=>r.json()).catch(()=>({molds:[]})),
+        fetch(API+'/logs').then(r=>r.json()).catch(()=>({logs:[]})),
+      ]);
+      if(mr.error)throw new Error(mr.error);
+      setMolds(mr.molds||[]);
+      setLogs(lr.logs||[]);
+    }catch(e){show('加载失败：'+e.message,'error');}
+    finally{setLoading(false);}
+  },[]);
+
+  useEffect(()=>{loadData();},[loadData]);
+
+  const handleFlow=async(mold,targetStatus,remark)=>{
+    if(!targetStatus)return;
+    try{
+      const r=await fetch(API+'/molds/'+mold.record_id,{
+        method:'PUT',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({fields:{'当前状态（文本）':targetStatus},log:{moldId:mold.fields.id+(mold.fields.subId||''),from:mold.fields.status,to:targetStatus,remark}})
+      });
+      const data=await r.json();
+      if(data.error)throw new Error(data.error);
+      show(`流转成功：${mold.fields.status}→${targetStatus}`);
+      setSelectedMold(null);
+      loadData();
+    }catch(e){show('流转失败：'+e.message,'error');}
+  };
+
+  const handleNewMold=async(form)=>{
+    try{
+      const r=await fetch(API+'/molds',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({fields:{'模具编号':form.id,'子模具号':form.subId||'','当前状态（文本）':'新模入库','存放位置':form.location||'','SAP设备号':form.sapId||'','备注':form.remark||'','累计维修次数':0,'成功次数':0}})
+      });
+      const data=await r.json();
+      if(data.error)throw new Error(data.error);
+      show('新模入库成功 ✓');
+      setShowNewMold(false);
+      loadData();
+    }catch(e){show('入库失败：'+e.message,'error');}
+  };
+
+  const handleScan=(id)=>{
+    setShowScan(false);
+    const found=molds.find(m=>m.fields.id===id||m.fields.id+m.fields.subId===id);
+    if(found)setSelectedMold(found);else show('未找到模具：'+id,'error');
+  };
+
+  const needAction=page==='inventory'||page==='trial'||page==='repair';
+
+  return(
+    <div className="min-h-screen bg-gray-50">
+      <TopBar
+        title={PAGE_NAMES[page]||page}
+        actions={needAction&&<button onClick={()=>setShowScan(true)} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-medium">📷 扫码</button>}
+      />
+      <div className="content">
+        {loading?<div className="loading"><div className="loading-spinner"/><div>加载中...</div></div>:(
+          <>
+            {page==='dashboard'&&<Dashboard molds={molds} setActive={setPage}/>}
+            {page==='inventory'&&<MoldList molds={molds} onSelect={setSelectedMold} onNew={()=>setShowNewMold(true)}/>}
+            {page==='trial'&&<TrialRepairPage molds={molds} onSelect={setSelectedMold} type="trial"/>}
+            {page==='repair'&&<TrialRepairPage molds={molds} onSelect={setSelectedMold} type="repair"/>}
+            {page==='records'&&<RecordsPage logs={logs}/>}
+          </>
+        )}
+      </div>
+      <BottomBar active={page} setActive={setPage} loading={loading}/>
+      {needAction&&<button onClick={()=>setShowNewMold(true)} className="fixed bottom-20 right-4 w-14 h-14 bg-green-600 text-white rounded-full shadow-lg text-2xl flex items-center justify-center z-40" style={{boxShadow:'0 4px 16px rgba(52,168,83,.4)'}}>+</button>}
+      {selectedMold&&<FlowModal mold={selectedMold} onConfirm={handleFlow} onClose={()=>setSelectedMold(null)}/>}
+      {showNewMold&&<NewMoldModal onConfirm={handleNewMold} onClose={()=>setShowNewMold(false)}/>}
+      {showScan&&<QRScan onResult={handleScan} onClose={()=>setShowScan(false)}/>}
+      {toast&&<Toast msg={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
